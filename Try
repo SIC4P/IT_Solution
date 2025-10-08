@@ -1,0 +1,22 @@
+CREATE TRIGGER trg_PreventDoubleClaim
+ON slogsall
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Convert invalid claims (within 12 hours) into tapcount
+    UPDATE s
+    SET s.uq_id2 = 'tapcount'
+    FROM slogsall s
+    JOIN inserted i ON s.uq_id = i.uq_id
+    WHERE i.uq_id2 = 'Claim'
+      AND EXISTS (
+          SELECT 1
+          FROM slogsall prev
+          WHERE prev.id = i.id
+            AND prev.uq_id2 = 'Claim'
+            AND prev.uq_timestamp >= DATEADD(HOUR, -12, i.uq_timestamp)
+            AND prev.uq_timestamp < i.uq_timestamp
+      );
+END;
